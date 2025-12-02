@@ -185,7 +185,7 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", () => {
-            d3.csv("data/survey lung cancer.csv", d3.autoType).then(raw => {
+            d3.csv("data/lung_cancer.csv", d3.autoType).then(raw => {
                 const data = raw.map(d => {
                     const yn = v => (v === 2 ? "Yes" : "No");
                     const symptomCols = ["SMOKING","YELLOW_FINGERS","ANXIETY","PEER_PRESSURE","CHRONIC DISEASE","FATIGUE ","ALLERGY ","WHEEZING","ALCOHOL CONSUMING","COUGHING","SHORTNESS OF BREATH","SWALLOWING DIFFICULTY","CHEST PAIN"];
@@ -251,7 +251,7 @@
                 });
             }).catch(error => {
                 console.error("Error loading CSV:", error);
-                d3.select("#chart-age-symptom").append("div").style("color", "red").text("Error loading data. Please ensure 'data/survey lung cancer.csv' exists.");
+                d3.select("#chart-age-symptom").append("div").style("color", "red").text("Error loading data. Please ensure 'data/lung_cancer.csv' exists.");
             });
         });
     </script>

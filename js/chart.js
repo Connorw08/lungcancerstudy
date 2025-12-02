@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-  d3.csv("data/survey lung cancer.csv", d3.autoType).then(raw => {
+  d3.csv("data/lung_cancer.csv", d3.autoType).then(raw => {
     const data = raw.map(d => {
       const yn = v => (v === 2 ? "Yes" : "No");
       const symptomCols = [

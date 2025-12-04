@@ -50,24 +50,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
 
-    const colorPrimary = "#2563eb";
-    const colorPrimaryLight = "#bfdbfe";
-    const colorSecondary = "#f97316";
-    const colorNeutral = "#9ca3af";
-    const colorYes = "#0f766e";
-    const colorNo = "#e11d48";
-    const colorLine = "#0f172a";
-
-    const makeSvg = (selector) => {
-      const svg = d3.select(selector)
-        .append("svg")
-        .attr("viewBox", `0 0 ${width} ${height}`);
-
-      const g = svg.append("g")
-        .attr("transform", `translate(${margin.left},${margin.top})`);
-
-      return g;
-    };
+    // Palette
+    const colorPrimary = "#3b82f6";
+    const colorPrimaryLight = "#dbeafe";
+    const colorSecondary = "#f59e0b";
+    const colorNeutral = "#6b7280";
+    const colorYes = "#059669";
+    const colorNo = "#dc2626";
+    const colorLine = "#1e293b";
 
     const tooltip = d3.select("body")
       .append("div")
@@ -83,10 +73,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const hideTooltip = () => tooltip.classed("show", false);
 
+    const makeSvg = (selector) => {
+      const container = d3.select(selector);
+      if (container.empty()) return null;
+
+      const svg = container
+        .append("svg")
+        .attr("viewBox", `0 0 ${width} ${height}`);
+
+      const g = svg.append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+      // Attach inner size to g so helpers can read it if needed
+      g.innerWidth = innerWidth;
+      g.innerHeight = innerHeight;
+
+      return g;
+    };
+
     function rateByCategory(data, categoryAccessor) {
       const groups = d3.group(data, categoryAccessor);
       const rows = [];
-
       groups.forEach((vals, key) => {
         const total = vals.length;
         const cancerYes = vals.filter(d => d.lung_cancer === "YES").length;
@@ -97,6 +104,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function addHorizontalGridlines(svg, yScale) {
+      if (!svg) return;
       svg.append("g")
         .attr("class", "grid-y")
         .call(
@@ -109,8 +117,10 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("stroke-opacity", 0.7);
     }
 
+    // -------- Overall prevalence (index.html) --------
     (function drawPrevalence() {
       const svg = makeSvg("#chart-overall");
+      if (!svg) return;
 
       const counts = d3.rollup(
         data,
@@ -141,14 +151,15 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("y", innerHeight)
         .attr("width", x.bandwidth())
         .attr("height", 0)
-        .attr("rx", 6)
+        .attr("rx", 8)
         .attr("fill", d => d.status === "YES" ? colorYes : colorNo)
-        .attr("opacity", 0.9)
+        .attr("opacity", 0.85)
+        .style("cursor", "pointer")
         .on("mousemove", (event, d) => {
           showTooltip(
-            `<strong>${d.status}</strong><br>
-             Count: ${d.count}<br>
-             Share of sample: ${(d.pct * 100).toFixed(1)}%`,
+            `<strong style="font-size: 14px;">${d.status}</strong><br>
+             <span style="color: #d1d5db;">Count:</span> <strong>${d.count}</strong><br>
+             <span style="color: #d1d5db;">Percentage:</span> <strong>${(d.pct * 100).toFixed(1)}%</strong>`,
             event
           );
         })
@@ -158,18 +169,25 @@ document.addEventListener("DOMContentLoaded", () => {
             .transition()
             .duration(200)
             .attr("opacity", 1)
-            .attr("transform", "translate(0,-4)");
+            .attr("transform", "translate(0,-6)")
+            .attr("rx", 10);
         })
         .on("mouseout", function () {
           d3.select(this)
             .transition()
             .duration(200)
-            .attr("opacity", 0.9)
-            .attr("transform", "translate(0,0)");
+            .attr("opacity", 0.85)
+            .attr("transform", "translate(0,0)")
+            .attr("rx", 8);
+        })
+        .on("click", function () {
+          d3.select(this)
+            .transition().duration(150).attr("opacity", 0.5)
+            .transition().duration(150).attr("opacity", 1);
         });
 
       bars.transition()
-        .duration(900)
+        .duration(1000)
         .ease(d3.easeCubicOut)
         .attr("y", d => y(d.count))
         .attr("height", d => innerHeight - y(d.count));
@@ -182,26 +200,33 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("x", d => x(d.status) + x.bandwidth() / 2)
         .attr("y", innerHeight - 6)
         .attr("text-anchor", "middle")
-        .style("font-size", "12px")
+        .style("font-size", "13px")
+        .style("font-weight", "600")
         .style("fill", "#111827")
         .text(d => (d.pct * 100).toFixed(1) + "%")
         .transition()
-        .duration(900)
+        .duration(1000)
         .ease(d3.easeCubicOut)
-        .attr("y", d => y(d.count) - 8);
+        .attr("y", d => y(d.count) - 10);
 
       svg.append("g")
         .attr("transform", `translate(0,${innerHeight})`)
-        .call(d3.axisBottom(x));
+        .call(d3.axisBottom(x))
+        .selectAll("text")
+        .style("font-size", "12px")
+        .style("font-weight", "500");
 
       svg.append("g")
-        .call(d3.axisLeft(y));
+        .call(d3.axisLeft(y))
+        .selectAll("text")
+        .style("font-size", "11px");
 
       svg.append("text")
         .attr("x", innerWidth / 2)
         .attr("y", innerHeight + 50)
         .attr("text-anchor", "middle")
         .style("font-weight", 600)
+        .style("font-size", "13px")
         .text("Lung Cancer Status");
 
       svg.append("text")
@@ -210,18 +235,21 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("y", -60)
         .attr("text-anchor", "middle")
         .style("font-weight", 600)
+        .style("font-size", "13px")
         .text("Number of Individuals");
 
       svg.append("text")
         .attr("x", 0)
         .attr("y", -10)
         .style("font-weight", 700)
-        .style("font-size", "14px")
+        .style("font-size", "15px")
         .text("Overall Lung Cancer Prevalence");
     })();
 
+    // -------- Age histogram (section1) --------
     (function drawAgeHistogram() {
       const svg = makeSvg("#chart-age");
+      if (!svg) return;
 
       const ages = data.map(d => d.age);
       const x = d3.scaleLinear()
@@ -263,14 +291,16 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("y", innerHeight)
         .attr("width", barWidth)
         .attr("height", 0)
+        .attr("rx", 4)
         .attr("fill", colorYes)
         .attr("opacity", 0.8)
+        .style("cursor", "pointer")
         .on("mousemove", (event, d) => {
           if (!d.length) return;
           showTooltip(
-            `<strong>Lung cancer = YES</strong><br>
-             Age: ${d.x0}–${d.x1}<br>
-             Count: ${d.length}`,
+            `<strong style="color: ${colorYes};">Lung cancer = YES</strong><br>
+             <span style="color: #d1d5db;">Age range:</span> <strong>${d.x0}–${d.x1}</strong><br>
+             <span style="color: #d1d5db;">Count:</span> <strong>${d.length}</strong>`,
             event
           );
         })
@@ -279,13 +309,17 @@ document.addEventListener("DOMContentLoaded", () => {
           d3.select(this)
             .transition()
             .duration(200)
-            .attr("opacity", 1);
+            .attr("opacity", 1)
+            .attr("y", d => y(d.length) - 4)
+            .attr("height", d => innerHeight - y(d.length) + 4);
         })
-        .on("mouseout", function () {
+        .on("mouseout", function (event, d) {
           d3.select(this)
             .transition()
             .duration(200)
-            .attr("opacity", 0.8);
+            .attr("opacity", 0.8)
+            .attr("y", y(d.length))
+            .attr("height", innerHeight - y(d.length));
         });
 
       const barsNo = svg.selectAll(".bar-age-no")
@@ -297,14 +331,16 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("y", innerHeight)
         .attr("width", barWidth)
         .attr("height", 0)
+        .attr("rx", 4)
         .attr("fill", colorNo)
-        .attr("opacity", 0.85)
+        .attr("opacity", 0.8)
+        .style("cursor", "pointer")
         .on("mousemove", (event, d) => {
           if (!d.length) return;
           showTooltip(
-            `<strong>Lung cancer = NO</strong><br>
-             Age: ${d.x0}–${d.x1}<br>
-             Count: ${d.length}`,
+            `<strong style="color: ${colorNo};">Lung cancer = NO</strong><br>
+             <span style="color: #d1d5db;">Age range:</span> <strong>${d.x0}–${d.x1}</strong><br>
+             <span style="color: #d1d5db;">Count:</span> <strong>${d.length}</strong>`,
             event
           );
         })
@@ -313,39 +349,48 @@ document.addEventListener("DOMContentLoaded", () => {
           d3.select(this)
             .transition()
             .duration(200)
-            .attr("opacity", 1);
+            .attr("opacity", 1)
+            .attr("y", d => y(d.length) - 4)
+            .attr("height", d => innerHeight - y(d.length) + 4);
         })
-        .on("mouseout", function () {
+        .on("mouseout", function (event, d) {
           d3.select(this)
             .transition()
             .duration(200)
-            .attr("opacity", 0.85);
+            .attr("opacity", 0.8)
+            .attr("y", y(d.length))
+            .attr("height", innerHeight - y(d.length));
         });
 
       barsYes.transition()
-        .duration(900)
-        .delay((d, i) => i * 40)
+        .duration(1000)
+        .delay((d, i) => i * 50)
         .attr("y", d => y(d.length))
         .attr("height", d => innerHeight - y(d.length));
 
       barsNo.transition()
-        .duration(900)
-        .delay((d, i) => i * 40)
+        .duration(1000)
+        .delay((d, i) => i * 50)
         .attr("y", d => y(d.length))
         .attr("height", d => innerHeight - y(d.length));
 
       svg.append("g")
         .attr("transform", `translate(0,${innerHeight})`)
-        .call(d3.axisBottom(x));
+        .call(d3.axisBottom(x))
+        .selectAll("text")
+        .style("font-size", "11px");
 
       svg.append("g")
-        .call(d3.axisLeft(y));
+        .call(d3.axisLeft(y))
+        .selectAll("text")
+        .style("font-size", "11px");
 
       svg.append("text")
         .attr("x", innerWidth / 2)
         .attr("y", innerHeight + 50)
         .attr("text-anchor", "middle")
         .style("font-weight", 600)
+        .style("font-size", "13px")
         .text("Age");
 
       svg.append("text")
@@ -354,6 +399,7 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("y", -65)
         .attr("text-anchor", "middle")
         .style("font-weight", 600)
+        .style("font-size", "13px")
         .text("Number of Individuals");
 
       const legend = svg.append("g")
@@ -361,34 +407,41 @@ document.addEventListener("DOMContentLoaded", () => {
 
       legend.append("rect")
         .attr("x", 0).attr("y", 0)
-        .attr("width", 14).attr("height", 14)
+        .attr("width", 16).attr("height", 16)
+        .attr("rx", 3)
         .attr("fill", colorYes);
 
       legend.append("text")
-        .attr("x", 22).attr("y", 11)
+        .attr("x", 24).attr("y", 12)
         .text("Lung cancer = YES")
-        .style("font-size", "12px");
+        .style("font-size", "12px")
+        .style("font-weight", "500");
 
       legend.append("rect")
-        .attr("x", 0).attr("y", 22)
-        .attr("width", 14).attr("height", 14)
+        .attr("x", 0).attr("y", 24)
+        .attr("width", 16).attr("height", 16)
+        .attr("rx", 3)
         .attr("fill", colorNo);
 
       legend.append("text")
-        .attr("x", 22).attr("y", 33)
+        .attr("x", 24).attr("y", 36)
         .text("Lung cancer = NO")
-        .style("font-size", "12px");
+        .style("font-size", "12px")
+        .style("font-weight", "500");
 
       svg.append("text")
         .attr("x", 0)
         .attr("y", -10)
         .style("font-weight", 700)
-        .style("font-size", "14px")
+        .style("font-size", "15px")
         .text("Age Distribution by Lung Cancer Status");
     })();
 
+    // -------- Gender chart (section1) --------
     (function drawGenderRate() {
       const svg = makeSvg("#chart-gender");
+      if (!svg) return;
+
       const rows = rateByCategory(data, d => d.gender);
 
       const x = d3.scaleBand()
@@ -402,6 +455,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
       addHorizontalGridlines(svg, y);
 
+      const colorGender = d3.scaleOrdinal()
+        .domain(rows.map(d => d.key))
+        .range(["#8b5cf6", "#ec4899", "#0ea5e9", "#f97316"].slice(0, rows.length));
+
       const bars = svg.selectAll(".bar-gender")
         .data(rows)
         .enter()
@@ -411,14 +468,15 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("y", innerHeight)
         .attr("width", x.bandwidth())
         .attr("height", 0)
-        .attr("rx", 6)
-        .attr("fill", colorPrimary)
-        .attr("opacity", 0.9)
+        .attr("rx", 8)
+        .attr("fill", d => colorGender(d.key))
+        .attr("opacity", 0.85)
+        .style("cursor", "pointer")
         .on("mousemove", (event, d) => {
           showTooltip(
-            `<strong>Gender: ${d.key}</strong><br>
-             Lung cancer: ${(d.rate * 100).toFixed(1)}%<br>
-             YES: ${d.cancerYes} / Total: ${d.total}`,
+            `<strong style="font-size: 14px;">Gender: ${d.key}</strong><br>
+             <span style="color: #d1d5db;">Cancer rate:</span> <strong>${(d.rate * 100).toFixed(1)}%</strong><br>
+             <span style="color: #d1d5db;">Cases:</span> <strong>${d.cancerYes} / ${d.total}</strong>`,
             event
           );
         })
@@ -428,18 +486,20 @@ document.addEventListener("DOMContentLoaded", () => {
             .transition()
             .duration(200)
             .attr("opacity", 1)
-            .attr("transform", "translate(0,-4)");
+            .attr("transform", "translate(0,-6)")
+            .attr("rx", 10);
         })
         .on("mouseout", function () {
           d3.select(this)
             .transition()
             .duration(200)
-            .attr("opacity", 0.9)
-            .attr("transform", "translate(0,0)");
+            .attr("opacity", 0.85)
+            .attr("transform", "translate(0,0)")
+            .attr("rx", 8);
         });
 
       bars.transition()
-        .duration(900)
+        .duration(1000)
         .ease(d3.easeCubicOut)
         .attr("y", d => y(d.rate))
         .attr("height", d => innerHeight - y(d.rate));
@@ -448,28 +508,35 @@ document.addEventListener("DOMContentLoaded", () => {
         .data(rows)
         .enter()
         .append("text")
+        .attr("class", "bar-gender-label")
         .attr("x", d => x(d.key) + x.bandwidth() / 2)
         .attr("y", innerHeight - 6)
         .attr("text-anchor", "middle")
-        .style("font-size", "12px")
+        .style("font-size", "13px")
+        .style("font-weight", "600")
         .style("fill", "#111827")
         .text(d => (d.rate * 100).toFixed(1) + "%")
         .transition()
-        .duration(900)
-        .attr("y", d => y(d.rate) - 8);
+        .duration(1000)
+        .attr("y", d => y(d.rate) - 10);
 
       svg.append("g")
         .attr("transform", `translate(0,${innerHeight})`)
-        .call(d3.axisBottom(x));
+        .call(d3.axisBottom(x))
+        .selectAll("text")
+        .style("font-size", "11px");
 
       svg.append("g")
-        .call(d3.axisLeft(y).tickFormat(d => (d * 100).toFixed(0) + "%"));
+        .call(d3.axisLeft(y).tickFormat(d => (d * 100).toFixed(0) + "%"))
+        .selectAll("text")
+        .style("font-size", "11px");
 
       svg.append("text")
         .attr("x", innerWidth / 2)
         .attr("y", innerHeight + 50)
         .attr("text-anchor", "middle")
         .style("font-weight", 600)
+        .style("font-size", "13px")
         .text("Gender");
 
       svg.append("text")
@@ -478,24 +545,27 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("y", -70)
         .attr("text-anchor", "middle")
         .style("font-weight", 600)
+        .style("font-size", "13px")
         .text("Lung Cancer Rate");
 
       svg.append("text")
         .attr("x", 0)
         .attr("y", -10)
         .style("font-weight", 700)
-        .style("font-size", "14px")
+        .style("font-size", "15px")
         .text("Lung Cancer Rate by Gender");
     })();
 
+    // -------- Reusable binary Yes/No chart (section2) --------
     function drawBinaryRiskChart(containerSelector, label) {
       const svg = makeSvg(containerSelector);
+      if (!svg) return;
 
       const rows = rateByCategory(data, d => d[label]);
       const x = d3.scaleBand()
         .domain(rows.map(d => d.key))
         .range([0, innerWidth])
-        .padding(0.3);
+        .padding(0.35);
 
       const y = d3.scaleLinear()
         .domain([0, 1]).nice()
@@ -505,7 +575,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const colorScale = d3.scaleOrdinal()
         .domain(["Yes", "No"])
-        .range([colorSecondary, colorNeutral]);
+        .range(["#f97316", "#64748b"]);
 
       const bars = svg.selectAll(".bar-bin-" + label)
         .data(rows)
@@ -516,14 +586,15 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("y", innerHeight)
         .attr("width", x.bandwidth())
         .attr("height", 0)
-        .attr("rx", 6)
+        .attr("rx", 8)
         .attr("fill", d => colorScale(d.key))
-        .attr("opacity", 0.95)
+        .attr("opacity", 0.85)
+        .style("cursor", "pointer")
         .on("mousemove", (event, d) => {
           showTooltip(
-            `<strong>${label}: ${d.key}</strong><br>
-             Lung cancer: ${(d.rate * 100).toFixed(1)}%<br>
-             YES: ${d.cancerYes} / Total: ${d.total}`,
+            `<strong style="font-size: 14px;">${label}: ${d.key}</strong><br>
+             <span style="color: #d1d5db;">Cancer rate:</span> <strong>${(d.rate * 100).toFixed(1)}%</strong><br>
+             <span style="color: #d1d5db;">Cases:</span> <strong>${d.cancerYes} / ${d.total}</strong>`,
             event
           );
         })
@@ -533,18 +604,20 @@ document.addEventListener("DOMContentLoaded", () => {
             .transition()
             .duration(200)
             .attr("opacity", 1)
-            .attr("transform", "translate(0,-4)");
+            .attr("transform", "translate(0,-6)")
+            .attr("rx", 10);
         })
         .on("mouseout", function () {
           d3.select(this)
             .transition()
             .duration(200)
-            .attr("opacity", 0.95)
-            .attr("transform", "translate(0,0)");
+            .attr("opacity", 0.85)
+            .attr("transform", "translate(0,0)")
+            .attr("rx", 8);
         });
 
       bars.transition()
-        .duration(900)
+        .duration(1000)
         .ease(d3.easeCubicOut)
         .attr("y", d => y(d.rate))
         .attr("height", d => innerHeight - y(d.rate));
@@ -553,29 +626,37 @@ document.addEventListener("DOMContentLoaded", () => {
         .data(rows)
         .enter()
         .append("text")
+        .attr("class", "bar-bin-label-" + label)
         .attr("x", d => x(d.key) + x.bandwidth() / 2)
         .attr("y", innerHeight - 6)
         .attr("text-anchor", "middle")
-        .style("font-size", "12px")
+        .style("font-size", "13px")
+        .style("font-weight", "600")
         .style("fill", "#111827")
         .text(d => (d.rate * 100).toFixed(1) + "%")
         .transition()
-        .duration(900)
-        .attr("y", d => y(d.rate) - 8);
+        .duration(1000)
+        .attr("y", d => y(d.rate) - 10);
 
       svg.append("g")
         .attr("transform", `translate(0,${innerHeight})`)
-        .call(d3.axisBottom(x));
+        .call(d3.axisBottom(x))
+        .selectAll("text")
+        .style("font-size", "12px")
+        .style("font-weight", "500");
 
       svg.append("g")
-        .call(d3.axisLeft(y).tickFormat(d => (d * 100).toFixed(0) + "%"));
+        .call(d3.axisLeft(y).tickFormat(d => (d * 100).toFixed(0) + "%"))
+        .selectAll("text")
+        .style("font-size", "11px");
 
       svg.append("text")
         .attr("x", innerWidth / 2)
         .attr("y", innerHeight + 50)
         .attr("text-anchor", "middle")
         .style("font-weight", 600)
-        .text(label + " (Yes / No)");
+        .style("font-size", "13px")
+        .text(label.charAt(0).toUpperCase() + label.slice(1) + " (Yes / No)");
 
       svg.append("text")
         .attr("transform", "rotate(-90)")
@@ -583,14 +664,31 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("y", -70)
         .attr("text-anchor", "middle")
         .style("font-weight", 600)
+        .style("font-size", "13px")
         .text("Lung Cancer Rate");
 
       svg.append("text")
         .attr("x", 0)
         .attr("y", -10)
         .style("font-weight", 700)
-        .style("font-size", "14px")
+        .style("font-size", "15px")
         .text("Lung Cancer Rate by " + label.charAt(0).toUpperCase() + label.slice(1));
+      
+      // Optional: update stat cards if they exist (section2)
+      if (label === "smoking") {
+        const statEl = document.getElementById("smoking-stat");
+        if (statEl && rows.length === 2) {
+          const diff = ((rows[0].rate / rows[1].rate) - 1) * 100;
+          statEl.textContent = `${diff > 0 ? "+" : ""}${diff.toFixed(0)}%`;
+        }
+      }
+      if (label === "alcohol") {
+        const statEl = document.getElementById("alcohol-stat");
+        if (statEl && rows.length === 2) {
+          const diff = ((rows[0].rate / rows[1].rate) - 1) * 100;
+          statEl.textContent = `${diff > 0 ? "+" : ""}${diff.toFixed(0)}%`;
+        }
+      }
     }
 
     (function drawSmoking() {
@@ -601,8 +699,10 @@ document.addEventListener("DOMContentLoaded", () => {
       drawBinaryRiskChart("#chart-alcohol", "alcohol");
     })();
 
+    // -------- Symptom count vs probability (section3) --------
     (function drawSymptomCountRate() {
       const svg = makeSvg("#chart-symptom-count");
+      if (!svg) return;
 
       const grouped = d3.group(data, d => d.symptomCount);
       const rows = Array.from(grouped, ([count, vals]) => {
@@ -627,18 +727,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
       addHorizontalGridlines(svg, y);
 
+      // Gradient for area
+      const defs = svg.append("defs");
+      const gradient = defs.append("linearGradient")
+        .attr("id", "gradient-symptom")
+        .attr("x1", "0%")
+        .attr("x2", "0%")
+        .attr("y1", "0%")
+        .attr("y2", "100%");
+
+      gradient.append("stop")
+        .attr("offset", "0%")
+        .attr("stop-color", colorPrimary)
+        .attr("stop-opacity", 0.8);
+
+      gradient.append("stop")
+        .attr("offset", "100%")
+        .attr("stop-color", colorPrimaryLight)
+        .attr("stop-opacity", 0.3);
+
       const area = d3.area()
         .x(d => x(d.count))
         .y0(innerHeight)
-        .y1(d => y(d.rate));
+        .y1(d => y(d.rate))
+        .curve(d3.curveMonotoneX);
 
       svg.append("path")
         .datum(rows)
-        .attr("fill", colorPrimaryLight)
-        .attr("opacity", 0.8)
-        .attr("d", area)
-        .attr("transform", "translate(0,0)")
-        .attr("stroke", "none");
+        .attr("fill", "url(#gradient-symptom)")
+        .attr("opacity", 0.7)
+        .attr("d", area);
 
       const line = d3.line()
         .x(d => x(d.count))
@@ -649,7 +767,7 @@ document.addEventListener("DOMContentLoaded", () => {
         .datum(rows)
         .attr("fill", "none")
         .attr("stroke", colorLine)
-        .attr("stroke-width", 2)
+        .attr("stroke-width", 3)
         .attr("d", line);
 
       const totalLength = path.node().getTotalLength();
@@ -658,7 +776,7 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("stroke-dasharray", totalLength + " " + totalLength)
         .attr("stroke-dashoffset", totalLength)
         .transition()
-        .duration(1200)
+        .duration(1500)
         .ease(d3.easeCubicOut)
         .attr("stroke-dashoffset", 0);
 
@@ -672,12 +790,13 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("r", 0)
         .attr("fill", colorPrimary)
         .attr("stroke", "#ffffff")
-        .attr("stroke-width", 1)
+        .attr("stroke-width", 2)
+        .style("cursor", "pointer")
         .on("mousemove", (event, d) => {
           showTooltip(
-            `<strong>Symptoms: ${d.count}</strong><br>
-             Lung cancer: ${(d.rate * 100).toFixed(1)}%<br>
-             YES: ${d.yes} / Total: ${d.total}`,
+            `<strong style="font-size: 14px;">Symptoms: ${d.count}</strong><br>
+             <span style="color: #d1d5db;">Cancer rate:</span> <strong>${(d.rate * 100).toFixed(1)}%</strong><br>
+             <span style="color: #d1d5db;">Cases:</span> <strong>${d.yes} / ${d.total}</strong>`,
             event
           );
         })
@@ -695,22 +814,27 @@ document.addEventListener("DOMContentLoaded", () => {
             .attr("r", 5);
         })
         .transition()
-        .duration(700)
-        .delay((d, i) => i * 60)
+        .duration(800)
+        .delay((d, i) => i * 40)
         .attr("r", 5);
 
       svg.append("g")
         .attr("transform", `translate(0,${innerHeight})`)
-        .call(d3.axisBottom(x).ticks(rows.length).tickFormat(d3.format("d")));
+        .call(d3.axisBottom(x).ticks(rows.length).tickFormat(d3.format("d")))
+        .selectAll("text")
+        .style("font-size", "11px");
 
       svg.append("g")
-        .call(d3.axisLeft(y).tickFormat(d => (d * 100).toFixed(0) + "%"));
+        .call(d3.axisLeft(y).tickFormat(d => (d * 100).toFixed(0) + "%"))
+        .selectAll("text")
+        .style("font-size", "11px");
 
       svg.append("text")
         .attr("x", innerWidth / 2)
         .attr("y", innerHeight + 50)
         .attr("text-anchor", "middle")
         .style("font-weight", 600)
+        .style("font-size", "13px")
         .text("Number of Positive Symptoms / Risk Flags");
 
       svg.append("text")
@@ -719,18 +843,21 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("y", -70)
         .attr("text-anchor", "middle")
         .style("font-weight", 600)
-        .text("Lung Cancer Rate");
+        .style("font-size", "13px")
+        .text("Lung Cancer Probability");
 
       svg.append("text")
         .attr("x", 0)
         .attr("y", -10)
         .style("font-weight", 700)
-        .style("font-size", "14px")
+        .style("font-size", "15px")
         .text("Lung Cancer Probability vs. Symptom Count");
     })();
 
+    // -------- Age vs symptom scatter (section4) --------
     (function drawAgeSymptomScatter() {
       const svg = makeSvg("#chart-age-symptom");
+      if (!svg) return;
 
       const x = d3.scaleLinear()
         .domain(d3.extent(data, d => d.age)).nice()
@@ -746,6 +873,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
       addHorizontalGridlines(svg, y);
 
+      // vertical gridlines
+      svg.append("g")
+        .attr("class", "grid-x")
+        .attr("transform", `translate(0,${innerHeight})`)
+        .call(
+          d3.axisBottom(x)
+            .tickSize(-innerHeight)
+            .tickFormat("")
+        )
+        .selectAll("line")
+        .attr("stroke", "#e5e7eb")
+        .attr("stroke-opacity", 0.7);
+
       const points = svg.selectAll(".point-age-sym")
         .data(data)
         .enter()
@@ -755,51 +895,62 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("cy", d => y(d.symptomCount))
         .attr("r", 0)
         .attr("fill", d => color(d.lung_cancer))
-        .attr("opacity", 0.8)
+        .attr("stroke", "#ffffff")
+        .attr("stroke-width", 1)
+        .attr("opacity", 0.7)
+        .style("cursor", "pointer")
         .on("mousemove", (event, d) => {
           showTooltip(
-            `<strong>${d.lung_cancer === "YES" ? "Lung cancer" : "No lung cancer"}</strong><br>
-             Age: ${d.age}<br>
-             Symptom count: ${d.symptomCount}<br>
-             Smoking: ${d.smoking}<br>
-             Alcohol: ${d.alcohol}`,
+            `<strong style="font-size: 14px; color: ${color(d.lung_cancer)};">${d.lung_cancer === "YES" ? "Lung cancer" : "No lung cancer"}</strong><br>
+             <span style="color: #d1d5db;">Age:</span> <strong>${d.age}</strong><br>
+             <span style="color: #d1d5db;">Symptoms:</span> <strong>${d.symptomCount}</strong><br>
+             <span style="color: #d1d5db;">Smoking:</span> <strong>${d.smoking}</strong><br>
+             <span style="color: #d1d5db;">Alcohol:</span> <strong>${d.alcohol}</strong>`,
             event
           );
         })
         .on("mouseleave", hideTooltip)
-        .on("mouseover", function () {
+        .on("mouseover", function (event, d) {
+          d3.select(this).raise();
           d3.select(this)
             .transition()
-            .duration(120)
-            .attr("r", 6)
-            .attr("opacity", 1);
+            .duration(150)
+            .attr("r", d.lung_cancer === "YES" ? 7 : 6)
+            .attr("opacity", 1)
+            .attr("stroke-width", 2.5);
         })
-        .on("mouseout", function () {
+        .on("mouseout", function (event, d) {
           d3.select(this)
             .transition()
-            .duration(120)
-            .attr("r", d => d.lung_cancer === "YES" ? 4.5 : 3.5)
-            .attr("opacity", 0.8);
+            .duration(150)
+            .attr("r", d.lung_cancer === "YES" ? 5 : 4)
+            .attr("opacity", 0.7)
+            .attr("stroke-width", 1);
         });
 
       points
         .transition()
-        .duration(600)
-        .delay((d, i) => i * 3)
-        .attr("r", d => d.lung_cancer === "YES" ? 4.5 : 3.5);
+        .duration(800)
+        .delay((d, i) => i * 2)
+        .attr("r", d => d.lung_cancer === "YES" ? 5 : 4);
 
       svg.append("g")
         .attr("transform", `translate(0,${innerHeight})`)
-        .call(d3.axisBottom(x));
+        .call(d3.axisBottom(x))
+        .selectAll("text")
+        .style("font-size", "11px");
 
       svg.append("g")
-        .call(d3.axisLeft(y).ticks(6).tickFormat(d3.format("d")));
+        .call(d3.axisLeft(y).ticks(8).tickFormat(d3.format("d")))
+        .selectAll("text")
+        .style("font-size", "11px");
 
       svg.append("text")
         .attr("x", innerWidth / 2)
         .attr("y", innerHeight + 50)
         .attr("text-anchor", "middle")
         .style("font-weight", 600)
+        .style("font-size", "13px")
         .text("Age");
 
       svg.append("text")
@@ -808,6 +959,7 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("y", -70)
         .attr("text-anchor", "middle")
         .style("font-weight", 600)
+        .style("font-size", "13px")
         .text("Number of Positive Symptoms");
 
       const legend = svg.append("g")
@@ -815,15 +967,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
       ["YES", "NO"].forEach((label, i) => {
         legend.append("circle")
-          .attr("cx", 0)
-          .attr("cy", i * 22)
-          .attr("r", 6)
-          .attr("fill", color(label));
+          .attr("cx", 7)
+          .attr("cy", i * 24 + 7)
+          .attr("r", 7)
+          .attr("fill", color(label))
+          .attr("stroke", "#ffffff")
+          .attr("stroke-width", 1.5);
 
         legend.append("text")
-          .attr("x", 16)
-          .attr("y", i * 22 + 4)
+          .attr("x", 22)
+          .attr("y", i * 24 + 11)
           .style("font-size", "12px")
+          .style("font-weight", "500")
           .text(label === "YES" ? "Lung cancer = YES" : "Lung cancer = NO");
       });
 
@@ -831,8 +986,11 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("x", 0)
         .attr("y", -10)
         .style("font-weight", 700)
-        .style("font-size", "14px")
+        .style("font-size", "15px")
         .text("Age vs. Symptom Burden, Colored by Lung Cancer Status");
     })();
+
+  }).catch(err => {
+    console.error("Error loading CSV:", err);
   });
 });
